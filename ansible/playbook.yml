@@ -1,14 +1,92 @@
-- name: Deploy to Tomcat
+---
+- name: Deploy Web Application with Ansible Automation
   hosts: web
   become: yes
+  vars:
+    app_name: "MavenAnsibleWebApp"
+    tomcat_home: "/opt/tomcat"
+    war_source: "/var/snap/jenkins/4859/workspace/MavenAnsible-CICD/target/{{ app_name }}.war"
+    war_destination: "{{ tomcat_home }}/webapps/{{ app_name }}.war"
+    backup_dir: "/opt/backups/{{ app_name }}"
+    
   tasks:
-    - name: Copy WAR file to Tomcat
+    - name: Create backup directory
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+      tags: backup
+    
+    - name: Backup existing WAR file if exists
       copy:
-        src: "/var/snap/jenkins/4859/workspace/MavenAnsible-CICD/target/MavenAnsibleWebApp.war"
-        dest: "/opt/tomcat/webapps/MavenAnsibleWebApp.war"
+        src: "{{ war_destination }}"
+        dest: "{{ backup_dir }}/{{ app_name }}-{{ ansible_date_time.epoch }}.war"
+        remote_src: yes
+      ignore_errors: yes
+      tags: backup
+    
+    - name: Stop Tomcat service
+      systemd:
+        name: tomcat9
+        state: stopped
+      tags: deploy
+    
+    - name: Remove old application directory
+      file:
+        path: "{{ tomcat_home }}/webapps/{{ app_name }}"
+        state: absent
+      tags: deploy
+    
+    - name: Copy new WAR file to Tomcat
+      copy:
+        src: "{{ war_source }}"
+        dest: "{{ war_destination }}"
+        owner: tomcat
+        group: tomcat
+        mode: '0644'
         remote_src: no
-
-    - name: Restart Tomcat
+      tags: deploy
+    
+    - name: Start Tomcat service
+      systemd:
+        name: tomcat9
+        state: started
+        enabled: yes
+      tags: deploy
+    
+    - name: Wait for Tomcat to start
+      wait_for:
+        port: 8080
+        host: localhost
+        delay: 10
+        timeout: 60
+      tags: verify
+    
+    - name: Wait for application deployment
+      uri:
+        url: "http://localhost:8080/{{ app_name }}"
+        method: GET
+        status_code: 200
+      register: app_check
+      retries: 5
+      delay: 10
+      tags: verify
+    
+    - name: Display deployment status
+      debug:
+        msg: "Application {{ app_name }} deployed successfully and is accessible at http://localhost:8080/{{ app_name }}"
+      when: app_check.status == 200
+      tags: verify
+    
+    - name: Log deployment completion
+      lineinfile:
+        path: "/var/log/ansible-deployments.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ app_name }} deployment completed successfully"
+        create: yes
+      tags: logging
+      
+  handlers:
+    - name: restart tomcat
       systemd:
         name: tomcat9
         state: restarted
