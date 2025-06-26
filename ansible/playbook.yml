@@ -5,7 +5,7 @@
   vars:
     app_name: "MavenAnsibleWebApp"
     tomcat_home: "/opt/tomcat"
-    war_source: "/var/snap/jenkins/4859/workspace/MavenAnsible-CICD/target/{{ app_name }}.war"
+    war_source: "war_source: "{{ playbook_dir }}/../target/{{ app_name }}.war"
     war_destination: "{{ tomcat_home }}/webapps/{{ app_name }}.war"
     backup_dir: "/opt/backups/{{ app_name }}"
     
