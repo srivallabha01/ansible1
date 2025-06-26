@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+
     environment {
         LANG = 'en_US.UTF-8'
         LC_ALL = 'en_US.UTF-8'
@@ -11,7 +11,7 @@ pipeline {
     tools {
         maven 'Maven'
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
@@ -26,7 +26,7 @@ pipeline {
                 sh 'mvn clean compile'
             }
         }
-        
+
         stage('Test') {
             steps {
                 echo "🧪 Running tests..."
@@ -34,7 +34,7 @@ pipeline {
             }
             post {
                 always {
-                    publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
+                    junit 'target/surefire-reports/*.xml'
                 }
             }
         }
@@ -52,7 +52,7 @@ pipeline {
                 archiveArtifacts artifacts: 'target/*.war', fingerprint: true
             }
         }
-        
+
         stage('Pre-deployment Health Check') {
             steps {
                 echo "🔍 Checking Tomcat status before deployment..."
@@ -60,7 +60,7 @@ pipeline {
                     try {
                         sh 'curl -f ${TOMCAT_URL}/manager/text/list || echo "Tomcat manager not accessible"'
                     } catch (Exception e) {
-                        echo "Pre-deployment check completed with warnings"
+                        echo "⚠️ Pre-deployment check completed with warnings"
                     }
                 }
             }
@@ -78,7 +78,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Post-deployment Verification') {
             steps {
                 echo "✅ Verifying deployment..."
@@ -88,7 +88,7 @@ pipeline {
                         script: "curl -s -o /dev/null -w '%{http_code}' ${TOMCAT_URL}/${APP_NAME}",
                         returnStdout: true
                     ).trim()
-                    
+
                     if (response == '200') {
                         echo "✅ Application is running successfully!"
                         currentBuild.description = "Deployment Successful - ${APP_NAME}"
@@ -98,7 +98,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Smoke Tests') {
             steps {
                 echo "🔥 Running smoke tests..."
