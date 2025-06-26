@@ -34,7 +34,18 @@ pipeline {
             }
             post {
                 always {
-                    junit 'target/surefire-reports/*.xml'
+                    script {
+                        def reportExists = sh(
+                            script: "ls target/surefire-reports/*.xml 2>/dev/null | wc -l",
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (reportExists != "0") {
+                            junit 'target/surefire-reports/*.xml'
+                        } else {
+                            echo "⚠️ No JUnit test reports found. Skipping report publishing."
+                        }
+                    }
                 }
             }
         }
