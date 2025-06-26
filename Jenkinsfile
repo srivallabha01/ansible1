@@ -5,7 +5,7 @@ pipeline {
         LANG = 'en_US.UTF-8'
         LC_ALL = 'en_US.UTF-8'
         APP_NAME = 'MavenAnsibleWebApp'
-        TOMCAT_URL = 'http://localhost:8080'
+        TOMCAT_URL = 'http://localhost:9090'
     }
 
     tools {
